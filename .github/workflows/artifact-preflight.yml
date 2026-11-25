@@ -1,0 +1,25 @@
+name: Synthetic artifact preflight
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/artifact-preflight.yml'
+permissions:
+  contents: read
+jobs:
+  receipt:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Create synthetic receipt
+        run: |
+          mkdir -p output
+          printf '{"fixture":"artifact-preflight","sha":"%s","run_id":"%s"}\n' "$GITHUB_SHA" "$GITHUB_RUN_ID" > output/receipt.json
+      - name: Upload synthetic receipt
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: synthetic-receipt
+          path: output/receipt.json
+          if-no-files-found: error
+          retention-days: 3
