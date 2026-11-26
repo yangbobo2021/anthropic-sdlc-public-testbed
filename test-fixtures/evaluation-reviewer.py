@@ -10,3 +10,4 @@ if packet["required"] and packet["current_sha"] != packet["verified_sha"]:
 if not packet["approver"]:
     findings.append("missing-approver")
 print(json.dumps({"findings": findings}))
+# Retain both expected findings.
