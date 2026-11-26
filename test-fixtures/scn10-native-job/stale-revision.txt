@@ -1,0 +1,1 @@
+Synthetic unscored revision for a stale-verdict acceptance case.
