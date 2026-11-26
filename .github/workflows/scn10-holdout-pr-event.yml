@@ -1,0 +1,38 @@
+# SPDX-FileCopyrightText: 2026 boob.yang
+name: Publish signed holdout from a synthetic PR event
+on:
+  pull_request_target:
+    branches: [scn10-holdout-sandbox]
+    types: [opened, reopened, synchronize]
+permissions:
+  contents: read
+jobs:
+  publish:
+    if: >-
+      github.repository == 'yangbobo2021/anthropic-sdlc-public-testbed' &&
+      github.actor == 'yangbobo2021' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (github.head_ref == 'codex/frozen-eval-maintained' || github.head_ref == 'codex/frozen-eval-regressed') &&
+      github.workflow_ref == format('{0}/.github/workflows/scn10-holdout-pr-event.yml@refs/heads/main', github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+      checks: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - name: Verify the fixture signature and publish the candidate verdict
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.number }}
+          TRUSTED_WORKFLOW_SHA: ${{ github.workflow_sha }}
+        run: python3 test-fixtures/scn10-holdout/publish-pr-event.py
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: scn10-signed-holdout-pr-event
+          path: artifacts/scn10-holdout-result.json
+          if-no-files-found: error
