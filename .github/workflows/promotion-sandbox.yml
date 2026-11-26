@@ -1,0 +1,50 @@
+name: Synthetic signed artifact promotion
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/promotion-sandbox.yml'
+      - '.github/workflows/sandbox-deployment.yml'
+      - 'scripts/sdlc/sandbox-promotion.sh'
+permissions:
+  contents: read
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main' && github.ref_protected
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    outputs:
+      digest: ${{ steps.package.outputs.digest }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - id: package
+        run: |
+          set -euo pipefail
+          mkdir -p package
+          git archive --format=tar HEAD src/service.py > package/service.tar
+          echo "digest=$(sha256sum package/service.tar | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+        with:
+          subject-path: package/service.tar
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: signed-service
+          path: package/service.tar
+          if-no-files-found: error
+  deploy:
+    needs: build
+    permissions:
+      contents: read
+      attestations: read
+      id-token: write
+    uses: ./.github/workflows/sandbox-deployment.yml
+    with:
+      digest: ${{ needs.build.outputs.digest }}
