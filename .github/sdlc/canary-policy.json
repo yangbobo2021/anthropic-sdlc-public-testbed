@@ -1,0 +1,11 @@
+{
+  "min_requests": 100,
+  "max_error_rate": 0.01,
+  "max_p95_ms": 400,
+  "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+  "producer": "fixture-metrics",
+  "max_error_increase": 0.005,
+  "max_p95_increase_ms": 50,
+  "min_seconds": 60,
+  "max_age_seconds": 1800
+}
