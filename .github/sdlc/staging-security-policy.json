@@ -3,7 +3,7 @@
   "approval_id": "SANDBOX-PSR-STAGING-261126",
   "scope_id": "local-runner-only",
   "runner_identity": "staging-reader",
-  "source_sha": "57b0c5682d52cbe311cbeb7d1b4fbe7ae56ef7a7",
+  "source_sha": "efbfd445760c43e130c85acb020035d63a426bf8",
   "digest": "sha256:961010f700634316ef51030ba8edc700d6b1adacd16ee0f03d7880f189f6d308",
   "blocking_severities": [
     "critical",
