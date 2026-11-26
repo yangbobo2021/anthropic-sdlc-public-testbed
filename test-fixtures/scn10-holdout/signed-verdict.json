@@ -1,0 +1,8 @@
+{
+  "schema": 1,
+  "score_report_sha256": "0482f135501b91fc0e2663e6ec0742c81a00bf081535c47ac7fbf894869558d3",
+  "verdicts": {
+    "25c7a8bad7a799cedb872a0b7741ad5992cb71fd": "success",
+    "9fd0d2e8303e5cd0477f7b0b9f2185812ec5eea8": "failure"
+  }
+}
