@@ -1,0 +1,27 @@
+# SPDX-FileCopyrightText: 2026 boob.yang
+name: Evaluate an approved staging security report
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  security:
+    if: github.ref == 'refs/heads/main' && github.ref_protected
+    runs-on: ubuntu-latest
+    environment: staging
+    timeout-minutes: 15
+    steps:
+    - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      with:
+        persist-credentials: false
+    - name: Collect approved staging report and apply protected policy
+      run: |
+        mkdir -p artifacts
+        SDLC_SCAN_APPROVAL=.github/sdlc/staging-security-policy.json make -s staging-security-report > artifacts/staging-security-report.json
+        python3 scripts/sdlc/practices.py staging-security artifacts/staging-security-report.json --policy .github/sdlc/staging-security-policy.json > artifacts/staging-security-verdict.json
+    - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      if: always()
+      with:
+        name: staging-security-verdict
+        path: artifacts/staging-security-verdict.json
+        if-no-files-found: warn

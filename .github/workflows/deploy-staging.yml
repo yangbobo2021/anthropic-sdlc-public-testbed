@@ -1,0 +1,36 @@
+# SPDX-FileCopyrightText: 2026 boob.yang
+name: Deploy and record staging smoke evidence
+on:
+  workflow_call:
+    inputs:
+      digest:
+        type: string
+        required: true
+      source_sha:
+        type: string
+        required: true
+permissions:
+  contents: read
+jobs:
+  staging:
+    if: github.ref == 'refs/heads/main' && github.ref_protected
+    runs-on: ubuntu-latest
+    environment: staging
+    timeout-minutes: 15
+    steps:
+    - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      with:
+        persist-credentials: false
+    - name: Deploy immutable artifact and run required smokes
+      env:
+        DIGEST: ${{ inputs.digest }}
+        SOURCE_SHA: ${{ inputs.source_sha }}
+      run: |
+        mkdir -p artifacts
+        python3 scripts/sdlc/run_staging.py .github/sdlc/staging-policy.json "$DIGEST" "$SOURCE_SHA" "$GITHUB_RUN_ID/$GITHUB_RUN_ATTEMPT" > artifacts/staging.json
+    - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      if: always()
+      with:
+        name: staging-receipt
+        path: artifacts/staging.json
+        if-no-files-found: error

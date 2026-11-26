@@ -26,3 +26,11 @@ test-api test-client test-integration:
 	@python3 test-fixtures/check-groups.py impact $(patsubst test-%,%,$@)
 test-full-unit test-full-integration:
 	@python3 test-fixtures/check-groups.py full $(patsubst test-full-%,%,$@)
+
+.PHONY: staging-deploy smoke-health smoke-key-path staging-security-report
+staging-deploy:
+	@python3 test-fixtures/staging-control.py deploy
+smoke-health smoke-key-path:
+	@python3 test-fixtures/staging-control.py smoke $(patsubst smoke-%,%,$@)
+staging-security-report:
+	@python3 test-fixtures/staging-control.py report
