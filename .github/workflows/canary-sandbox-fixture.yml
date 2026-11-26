@@ -1,0 +1,27 @@
+name: Native canary sandbox test
+on:
+  workflow_dispatch:
+    inputs:
+      case:
+        type: choice
+        options: [healthy, high-error, short-sample]
+        required: true
+permissions:
+  contents: read
+jobs:
+  bundle:
+    if: github.ref == 'refs/heads/main' && github.ref_protected
+    runs-on: ubuntu-latest
+    outputs:
+      digest: ${{ steps.id.outputs.digest }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - id: id
+        run: echo "digest=sha256:$(sha256sum test-fixtures/canary-service.py | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+  run-canary:
+    needs: bundle
+    uses: ./.github/workflows/deploy-production-canary.yml
+    with:
+      digest: ${{ needs.bundle.outputs.digest }}

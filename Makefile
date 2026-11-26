@@ -35,6 +35,9 @@ smoke-health smoke-key-path:
 staging-security-report:
 	@python3 test-fixtures/staging-control.py report
 
+.PHONY: canary-verify-promotion canary-deploy canary-observe canary-advance canary-rollback
+canary-verify-promotion canary-deploy canary-observe canary-advance canary-rollback:
+	@python3 test-fixtures/canary-adapter.py $(patsubst canary-%,%,$@)
 .PHONY: sdlc-review
 sdlc-review:
 	@python3 test-fixtures/evaluation-reviewer.py
