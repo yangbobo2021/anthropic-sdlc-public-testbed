@@ -1,0 +1,16 @@
+name: Synthetic approved promotion dispatcher
+on:
+  workflow_dispatch:
+permissions:
+  actions: write
+  contents: read
+jobs:
+  dispatch:
+    if: github.ref == 'refs/heads/main' && github.ref_protected
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Dispatch the sandbox promotion using the fixture App identity
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run promotion-sandbox.yml --repo "$GITHUB_REPOSITORY" --ref main
