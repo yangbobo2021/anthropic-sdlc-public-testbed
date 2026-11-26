@@ -1,0 +1,105 @@
+# SPDX-FileCopyrightText: 2026 boob.yang
+name: Verify security adapter with native GitHub Checks
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Synthetic PR 32, 33, or 34
+        type: choice
+        options: ['32', '33', '34']
+        required: true
+permissions:
+  contents: read
+jobs:
+  seed:
+    if: github.repository == 'yangbobo2021/anthropic-sdlc-public-testbed' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      checks: write
+      contents: read
+      pull-requests: read
+    outputs:
+      head: ${{ steps.seed.outputs.head }}
+      fixture_case: ${{ steps.seed.outputs.fixture_case }}
+    steps:
+      - name: Prepare fixture input on the live PR head
+        id: seed
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+        run: |
+          set -euo pipefail
+          case "$PR_NUMBER" in
+            32) fixture_case=complete; branch=timed-out ;;
+            33) fixture_case=missing-check; branch=missing ;;
+            34) fixture_case=missing-output; branch=neutral ;;
+            *) exit 2 ;;
+          esac
+          pr=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER")
+          head=$(jq -er --arg repo "$GITHUB_REPOSITORY" --arg ref "codex/policy-gate-fixture-$branch" '
+            select(.state == "open" and .head.repo.full_name == $repo
+              and .head.ref == $ref and .base.ref == "policy-sandbox") | .head.sha' <<< "$pr")
+          [[ "$head" =~ ^[0-9a-f]{40}$ ]]
+          echo "head=$head" >> "$GITHUB_OUTPUT"
+          echo "fixture_case=$fixture_case" >> "$GITHUB_OUTPUT"
+          if [[ "$fixture_case" != missing-check ]]; then
+            jq -n --arg head "$head" --arg kind "$fixture_case" '
+              {name:"trusted-security-findings", head_sha:$head, status:"completed",
+               conclusion:"success", output:({title:"Synthetic scanner", summary:"Sandbox input receipt"}
+                 + if $kind == "complete" then {text:({source_sha:$head,status:"complete",findings:[]} | tojson)}
+                   else {} end)}' |
+              gh api --method POST "repos/$GITHUB_REPOSITORY/check-runs" --input - > "$RUNNER_TEMP/seed.json"
+            jq -e '.app.id == 15368 and .conclusion == "success"' "$RUNNER_TEMP/seed.json" > /dev/null
+          fi
+  verify:
+    needs: seed
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      checks: write
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Run the unchanged adapter and record platform decisions
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          HEAD_SHA: ${{ needs.seed.outputs.head }}
+          FIXTURE_CASE: ${{ needs.seed.outputs.fixture_case }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          echo '{"security_review":{"name":"trusted-security-findings","app_id":15368,"blocking_severities":["critical","high"]}}' > "$RUNNER_TEMP/policy.json"
+          rc=0
+          python3 test-fixtures/security-adapter/github_evidence.py security "$RUNNER_TEMP/policy.json" || rc=$?
+          case "$FIXTURE_CASE" in
+            complete) expected=success; [[ "$rc" == 0 ]] ;;
+            missing-check|missing-output) expected=failure; [[ "$rc" == 1 ]] ;;
+            *) exit 2 ;;
+          esac
+          head=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq .head.sha)
+          [[ "$head" == "$HEAD_SHA" ]]
+          checks=$(gh api "repos/$GITHUB_REPOSITORY/commits/$head/check-runs?filter=latest&per_page=100")
+          jq -e --arg head "$head" --arg expected "$expected" --arg kind "$FIXTURE_CASE" \
+            --arg revision "$GITHUB_SHA" --argjson rc "$rc" '
+            def checks($name): [.check_runs[] | select(.name == $name and .head_sha == $head and .app.id == 15368)
+              | {id,name,head_sha,status,conclusion,html_url,app:{id:.app.id,slug:.app.slug},output:{text:.output.text,summary:.output.summary}}];
+            (checks("trusted-security-findings")) as $sources |
+            (checks("trusted-pr-security-review") | max_by(.id)) as $decision |
+            select($decision.status == "completed" and $decision.conclusion == $expected) |
+            select(if $kind == "missing-check" then $sources == []
+                   elif $kind == "missing-output" then $sources[0].output.text == null
+                   else ($sources[0].output.text | fromjson) == {source_sha:$head,status:"complete",findings:[]}
+                   end) |
+            {case:$kind,workflow_sha:$revision,pr_head:$head,adapter_exit:$rc,scanner:$sources,decision:$decision}' \
+            <<< "$checks" > artifacts/security-adapter-result.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: security-adapter-result
+          path: artifacts/security-adapter-result.json
+          if-no-files-found: error
