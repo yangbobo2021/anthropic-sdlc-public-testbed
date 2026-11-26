@@ -1,1 +1,1 @@
-synthetic immutable input A
+synthetic immutable input B
