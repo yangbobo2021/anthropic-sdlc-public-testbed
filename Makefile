@@ -34,3 +34,7 @@ smoke-health smoke-key-path:
 	@python3 test-fixtures/staging-control.py smoke $(patsubst smoke-%,%,$@)
 staging-security-report:
 	@python3 test-fixtures/staging-control.py report
+
+.PHONY: sdlc-review
+sdlc-review:
+	@python3 test-fixtures/evaluation-reviewer.py
