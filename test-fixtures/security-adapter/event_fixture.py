@@ -8,6 +8,7 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+import time
 
 from github_evidence import api
 
@@ -27,6 +28,16 @@ def read_checks(repo, sha, name):
          if run["head_sha"] == sha and run["name"] == name and run["app"]["id"] == FIXTURE_APP_ID),
         key=lambda run: run["id"],
     )
+
+
+def wait_for_latest(repo, sha, name, predicate):
+    for attempt in range(6):
+        runs = read_checks(repo, sha, name)
+        if runs and predicate(runs[-1]):
+            return runs
+        if attempt < 5:
+            time.sleep(2)
+    raise RuntimeError(f"Expected {name} did not become readable on {sha}")
 
 
 def receipt(run):
@@ -72,7 +83,7 @@ def main():
         assert json.loads(previous_scanner[-1]["output"]["text"])["source_sha"] == previous
         expected = "failure"
     else:
-        assert action == "opened"
+        assert action in {"opened", "reopened"}
         if branch == "codex/sdlc-0050-native-refresh":
             case, findings, expected = "complete-empty-report", [], "success"
         else:
@@ -88,6 +99,9 @@ def main():
             "output": {"title": "Synthetic scanner", "summary": case, "text": json.dumps(report)},
         })
         assert scanner["app"]["id"] == FIXTURE_APP_ID and scanner["head_sha"] == head
+        wait_for_latest(repo, head, SCANNER, lambda run: (
+            run["id"] == scanner["id"] and run["output"]["text"] == json.dumps(report)
+        ))
 
     policy = Path(os.environ["RUNNER_TEMP"]) / "security-event-policy.json"
     policy.write_text(json.dumps({"security_review": {
@@ -95,12 +109,14 @@ def main():
         "app_id": FIXTURE_APP_ID,
         "blocking_severities": ["critical", "high"],
     }}))
+    previous_verdicts = read_checks(repo, head, VERDICT)
+    previous_id = previous_verdicts[-1]["id"] if previous_verdicts else 0
     adapter = Path(__file__).with_name("github_evidence.py")
     decision = subprocess.run([sys.executable, str(adapter), "security", str(policy)], check=False)
     assert decision.returncode == (0 if expected == "success" else 1)
     current = api(f"repos/{repo}/pulls/{pull['number']}")
     assert current["state"] == "open" and current["head"]["sha"] == head
-    verdicts = read_checks(repo, head, VERDICT)
+    verdicts = wait_for_latest(repo, head, VERDICT, lambda run: run["id"] > previous_id)
     assert verdicts and verdicts[-1]["conclusion"] == expected
     assert verdicts[-1]["status"] == "completed"
     scanners = read_checks(repo, head, SCANNER)
