@@ -1,0 +1,16 @@
+name: Synthetic approval probe dispatcher
+on:
+  workflow_dispatch:
+permissions:
+  actions: write
+  contents: read
+jobs:
+  dispatch:
+    if: github.ref == 'refs/heads/main' && github.ref_protected
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Dispatch using the fixture App identity
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run environment-review-probe.yml --repo "$GITHUB_REPOSITORY" --ref main -f case=app-initiated
