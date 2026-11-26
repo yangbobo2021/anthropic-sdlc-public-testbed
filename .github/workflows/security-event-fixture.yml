@@ -2,7 +2,7 @@
 name: Verify security evidence on GitHub PR events
 on:
   pull_request_target:
-    types: [opened, synchronize]
+    types: [opened, reopened, synchronize]
     branches: [main]
     paths: ['test-fixtures/security-adapter/events/**']
 permissions:
