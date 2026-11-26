@@ -1,0 +1,62 @@
+# SPDX-FileCopyrightText: 2026 boob.yang
+name: Deploy and evaluate a bounded canary
+on:
+  workflow_call:
+    inputs:
+      digest:
+        type: string
+        required: true
+permissions:
+  contents: read
+concurrency:
+  group: sdlc-canary-production
+  cancel-in-progress: false
+jobs:
+  rollout:
+    if: github.ref == 'refs/heads/main' && github.ref_protected
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 20
+    env:
+      RELEASE_DIGEST: ${{ inputs.digest }}
+      SDLC_ROLLOUT_ID: ${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+    - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      with:
+        persist-credentials: false
+    - name: Deploy, measure and record the decision
+      shell: bash
+      run: |
+        set -euo pipefail
+        [[ "$RELEASE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+        mkdir -p artifacts
+        jq --arg digest "$RELEASE_DIGEST" '.digest = $digest' .github/sdlc/canary-policy.json > artifacts/canary-policy.json
+        rollout_started=false
+        rollback() { if "$rollout_started"; then make canary-rollback; fi; }
+        trap rollback EXIT
+        make canary-verify-promotion
+        rollout_started=true
+        make canary-deploy
+        make -s canary-observe > artifacts/observations.json
+        if python3 scripts/sdlc/practices.py canary artifacts/observations.json --policy artifacts/canary-policy.json \
+          > artifacts/decision.json 2> artifacts/decision-error.txt; then
+          make canary-advance
+        else
+          status=$?
+          if [[ ! -s artifacts/decision.json ]]; then
+            jq -n --arg digest "$RELEASE_DIGEST" --rawfile diagnostic artifacts/decision-error.txt \
+              '{passed: false, action: "hold", digest: $digest, reason: ($diagnostic | rtrimstr("\n"))}' \
+              > artifacts/decision.json
+          fi
+          cat artifacts/decision-error.txt >&2
+          exit "$status"
+        fi
+        trap - EXIT
+    - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      if: always()
+      with:
+        name: canary-decision
+        path: |
+          artifacts/decision.json
+          artifacts/observations.json
+        if-no-files-found: warn

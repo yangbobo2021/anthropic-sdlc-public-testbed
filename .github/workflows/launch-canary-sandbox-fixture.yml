@@ -1,0 +1,21 @@
+name: Native canary sandbox dispatcher
+on:
+  workflow_dispatch:
+    inputs:
+      case:
+        type: choice
+        options: [healthy, high-error, short-sample]
+        required: true
+permissions:
+  actions: write
+  contents: read
+jobs:
+  dispatch:
+    if: github.ref == 'refs/heads/main' && github.ref_protected
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          CASE: ${{ inputs.case }}
+        run: gh workflow run canary-sandbox-fixture.yml --repo "$GITHUB_REPOSITORY" --ref main -f case="$CASE"
