@@ -1,0 +1,32 @@
+# SPDX-FileCopyrightText: 2026 boob.yang
+name: Monitor cloud evidence
+on:
+  schedule:
+    - cron: '17 4 * * *'
+  workflow_dispatch:
+  repository_dispatch:
+    types: [sdlc-monitor-cloud]
+permissions:
+  contents: read
+jobs:
+  correlate:
+    if: github.ref == 'refs/heads/main' && github.ref_protected
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+    - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      with:
+        persist-credentials: false
+    - name: Collect and correlate authorized feed
+      run: |
+        umask 077
+        input=$(mktemp)
+        trap 'rm -f "$input"' EXIT
+        mkdir -p artifacts
+        make -s monitor-cloud-feed > "$input"
+        python3 scripts/sdlc/monitor_receipts.py cloud .github/sdlc/monitor-cloud.json "$input" > artifacts/monitor-cloud.json
+    - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      with:
+        name: monitor-cloud
+        path: artifacts/monitor-cloud.json
+        if-no-files-found: error

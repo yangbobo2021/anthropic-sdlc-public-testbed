@@ -1,0 +1,24 @@
+{
+  "producer": "team-container-adapter",
+  "collected_at": "2026-11-25T11:45:00Z",
+  "feed_version": "fixture-feed-v1",
+  "inventory": [
+    {
+      "running_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "service": "one",
+      "owner": "one-owner"
+    },
+    {
+      "running_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "service": "two",
+      "owner": "two-owner"
+    }
+  ],
+  "alerts": [
+    {
+      "running_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "alert_id": "fixture-alert",
+      "severity": "high"
+    }
+  ]
+}

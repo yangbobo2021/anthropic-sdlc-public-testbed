@@ -16,3 +16,7 @@ e2e-serve:
 package:
 	mkdir -p dist
 	git archive --format=tar HEAD src/service.py fixtures/release/input.txt | gzip -n > dist/release.tar.gz
+
+.PHONY: monitor-dependency-feed monitor-container-feed monitor-secret-feed monitor-cloud-feed
+monitor-dependency-feed monitor-container-feed monitor-secret-feed monitor-cloud-feed:
+	@python3 test-fixtures/monitor-feed.py $(word 2,$(subst -, ,$@))

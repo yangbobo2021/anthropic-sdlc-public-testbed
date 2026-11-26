@@ -1,0 +1,4 @@
+{
+  "producer": "team-container-adapter",
+  "max_age_seconds": 3600
+}

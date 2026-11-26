@@ -1,0 +1,27 @@
+{
+  "producer": "team-dependency-adapter",
+  "collected_at": "2026-11-25T11:45:00Z",
+  "feed_version": "fixture-feed-v1",
+  "inventory": [
+    {
+      "package": "fixture-library",
+      "version": "1.0",
+      "service": "one",
+      "owner": "one-owner"
+    },
+    {
+      "package": "fixture-library",
+      "version": "1.0",
+      "service": "two",
+      "owner": "two-owner"
+    }
+  ],
+  "alerts": [
+    {
+      "package": "fixture-library",
+      "version": "1.0",
+      "alert_id": "fixture-alert",
+      "severity": "high"
+    }
+  ]
+}
