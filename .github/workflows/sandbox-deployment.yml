@@ -1,0 +1,36 @@
+name: Synthetic deployment target
+on:
+  workflow_call:
+    inputs:
+      digest:
+        required: true
+        type: string
+permissions:
+  contents: read
+  attestations: read
+  id-token: write
+jobs:
+  promote:
+    if: github.ref == 'refs/heads/main' && github.ref_protected
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production-sandbox
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: signed-service
+          path: package
+      - name: Verify and deploy with GitHub OIDC
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_DIGEST: ${{ inputs.digest }}
+          SANDBOX_SUBJECT: repo:yangbobo2021@95600496/anthropic-sdlc-public-testbed@1471848289:environment:production-sandbox
+        run: bash scripts/sdlc/sandbox-promotion.sh
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: sandbox-promotion-evidence
+          path: evidence/
+          if-no-files-found: error
