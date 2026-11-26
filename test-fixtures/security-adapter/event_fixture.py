@@ -63,9 +63,12 @@ def main():
     head = pull["head"]["sha"]
     base = os.environ["GITHUB_SHA"]
     checkout = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+    payload_base = pull["base"]["sha"]
+    print(f"PR {pull['number']} {action}: payload base {payload_base}, "
+          f"workflow base {base}, checkout {checkout}, candidate {head}", flush=True)
     assert re.fullmatch(r"[0-9a-f]{40}", head)
-    assert checkout == base == pull["base"]["sha"] and head != checkout
-    assert pull["base"]["ref"] == "main"
+    assert checkout == base and head != checkout
+    assert os.environ["GITHUB_REF"] == "refs/heads/main" and pull["base"]["ref"] == "main"
     assert pull["head"]["repo"]["full_name"] == repo
     branch = pull["head"]["ref"]
     current = api(f"repos/{repo}/pulls/{pull['number']}")
@@ -131,6 +134,7 @@ def main():
         "pr": pull["number"],
         "pr_head": head,
         "base_sha": base,
+        "payload_base_sha": payload_base,
         "checkout_sha": checkout,
         "workflow_ref": os.environ["GITHUB_WORKFLOW_REF"],
         "adapter_sha256": hashlib.sha256(adapter.read_bytes()).hexdigest(),
