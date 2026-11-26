@@ -41,17 +41,27 @@ def main():
     verdict = report["verdicts"].get(head)
     if verdict not in {"success", "failure"}:
         raise SystemExit("Signed report does not cover the current PR SHA.")
+    merge_sha = pr["merge_commit_sha"]
+    assert pr["mergeable"] is True and re.fullmatch("[0-9a-f]{40}", merge_sha)
+    candidate = api(f"repos/{repo}/commits/{head}")
+    merge_commit = api(f"repos/{repo}/commits/{merge_sha}")
+    parent_shas = [parent["sha"] for parent in merge_commit["parents"]]
+    tree = candidate["commit"]["tree"]["sha"]
+    assert parent_shas == [pr["base"]["sha"], head]
+    assert merge_commit["commit"]["tree"]["sha"] == tree
     current = api(f"repos/{repo}/pulls/{number}")
     assert current["state"] == "open" and current["head"]["sha"] == head
+    assert current["merge_commit_sha"] == merge_sha and current["base"]["sha"] == parent_shas[0]
     summary = {"fixture_manifest_sha256": sha256(body).hexdigest(),
-               "score_report_sha256": report["score_report_sha256"], "candidate_sha": head}
+               "score_report_sha256": report["score_report_sha256"], "candidate_sha": head,
+               "published_sha": merge_sha, "evaluated_tree": tree, "test_merge_parents": parent_shas}
     name = "trusted-private-holdout"
     check = api(f"repos/{repo}/check-runs", {
-        "name": name, "head_sha": head, "status": "completed", "conclusion": verdict,
+        "name": name, "head_sha": merge_sha, "status": "completed", "conclusion": verdict,
         "output": {"title": name, "summary": "Signed synthetic private holdout verdict",
                    "text": json.dumps(summary, sort_keys=True)},
     })
-    assert check["app"]["id"] == 15368 and check["head_sha"] == head
+    assert check["app"]["id"] == 15368 and check["head_sha"] == merge_sha
     assert check["name"] == name and check["conclusion"] == verdict
     result = {**summary, "check_id": check["id"], "app_id": check["app"]["id"], "verdict": verdict,
               "pr_number": number, "workflow_commit": os.environ["GITHUB_SHA"]}
