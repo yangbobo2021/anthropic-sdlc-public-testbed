@@ -1,0 +1,8 @@
+{
+  "required_smokes": [
+    "health",
+    "key-path"
+  ],
+  "environment": "staging",
+  "runner_identity": "fixture-staging-runner"
+}

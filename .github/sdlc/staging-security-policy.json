@@ -1,0 +1,14 @@
+{
+  "environment": "staging",
+  "approval_id": "SANDBOX-PSR-STAGING-261126",
+  "scope_id": "local-runner-only",
+  "runner_identity": "staging-reader",
+  "source_sha": "57b0c5682d52cbe311cbeb7d1b4fbe7ae56ef7a7",
+  "digest": "sha256:961010f700634316ef51030ba8edc700d6b1adacd16ee0f03d7880f189f6d308",
+  "blocking_severities": [
+    "critical",
+    "high"
+  ],
+  "starts_at": "2026-11-26T01:31:56.228521+00:00",
+  "expires_at": "2026-11-27T02:31:56.228521+00:00"
+}

@@ -1,0 +1,22 @@
+name: Exercise isolated staging controls
+on:
+  workflow_dispatch:
+    inputs:
+      smoke_case:
+        type: choice
+        options: [healthy, broken]
+        default: healthy
+      scan_target:
+        type: choice
+        options: [staging, production]
+        default: staging
+permissions:
+  contents: read
+jobs:
+  verify-smokes:
+    uses: ./.github/workflows/deploy-staging.yml
+    with:
+      digest: sha256:961010f700634316ef51030ba8edc700d6b1adacd16ee0f03d7880f189f6d308
+      source_sha: ${{ github.sha }}
+  verify-security-scope:
+    uses: ./.github/workflows/staging-security-check.yml
