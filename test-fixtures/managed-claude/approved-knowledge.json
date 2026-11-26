@@ -1,0 +1,9 @@
+{
+  "PSR": {
+    "body": "Changes to a permission or data boundary require a project security review.",
+    "source": "approved-knowledge",
+    "record_id": "PSR",
+    "version": "fixture-v1",
+    "scope": "organization-read-only-demo"
+  }
+}

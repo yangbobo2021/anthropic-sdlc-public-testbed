@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "approved-knowledge": {
+      "type": "stdio",
+      "command": "/usr/bin/python3",
+      "args": [
+        "/opt/company/sdlc/knowledge_mcp.py"
+      ]
+    }
+  }
+}

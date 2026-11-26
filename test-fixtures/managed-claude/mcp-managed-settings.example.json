@@ -1,0 +1,11 @@
+{
+  "allowManagedMcpServersOnly": true,
+  "allowedMcpServers": [
+    {
+      "serverCommand": [
+        "/usr/bin/python3",
+        "/opt/company/sdlc/knowledge_mcp.py"
+      ]
+    }
+  ]
+}
