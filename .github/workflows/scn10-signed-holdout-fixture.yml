@@ -1,0 +1,38 @@
+# SPDX-FileCopyrightText: 2026 boob.yang
+name: Publish signed synthetic holdout evidence
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Synthetic pull request number in the isolated holdout branch
+        required: true
+        type: number
+permissions:
+  contents: read
+jobs:
+  publish:
+    if: >-
+      github.repository == 'yangbobo2021/anthropic-sdlc-public-testbed' &&
+      github.actor == 'yangbobo2021' &&
+      github.workflow_ref == format('{0}/.github/workflows/scn10-signed-holdout-fixture.yml@refs/heads/main', github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+      checks: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Verify synthetic report and publish the commit-scoped Check Run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+        run: python3 test-fixtures/scn10-holdout/publish.py
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: scn10-signed-holdout-receipt
+          path: artifacts/scn10-holdout-result.json
+          if-no-files-found: error
