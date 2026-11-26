@@ -1,0 +1,15 @@
+{
+  "producer": "team-cloud-adapter",
+  "max_age_seconds": 3600,
+  "baselines": [
+    {
+      "asset": "demo-cloud",
+      "owner": "platform",
+      "settings": {
+        "public_access": false,
+        "logging": true
+      }
+    }
+  ],
+  "exceptions": []
+}

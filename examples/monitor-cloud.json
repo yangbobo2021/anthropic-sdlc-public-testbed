@@ -1,0 +1,13 @@
+{
+  "producer": "team-cloud-adapter",
+  "collected_at": "2026-11-25T11:45:00Z",
+  "assets": [
+    {
+      "asset": "demo-cloud",
+      "settings": {
+        "public_access": true,
+        "logging": true
+      }
+    }
+  ]
+}
