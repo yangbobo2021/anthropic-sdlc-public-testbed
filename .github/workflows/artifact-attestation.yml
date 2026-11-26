@@ -1,0 +1,22 @@
+# SPDX-FileCopyrightText: 2026 boob.yang
+name: Attest the artifact from the approved build
+on:
+  workflow_call:
+permissions:
+  actions: read
+  contents: read
+  id-token: write
+  attestations: write
+jobs:
+  attest:
+    if: github.ref == 'refs/heads/main' && github.ref_protected && github.workflow_ref == format('{0}/.github/workflows/build-release.yml@refs/heads/main', github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+    - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
+      with:
+        name: immutable-release
+        path: dist
+    - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+      with:
+        subject-path: dist/release.tar.gz

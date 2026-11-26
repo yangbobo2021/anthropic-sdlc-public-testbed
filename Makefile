@@ -11,3 +11,8 @@ test:
 	$(PYTHON) -B -m unittest discover -s tests
 e2e-serve:
 	$(PYTHON) -B src/service.py
+
+.PHONY: package
+package:
+	mkdir -p dist
+	git archive --format=tar HEAD src/service.py fixtures/release/input.txt | gzip -n > dist/release.tar.gz
