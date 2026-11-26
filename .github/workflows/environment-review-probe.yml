@@ -1,0 +1,25 @@
+name: Synthetic environment approval probe
+run-name: approval probe ${{ inputs.case }}
+on:
+  workflow_dispatch:
+    inputs:
+      case:
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  verify-secret-access:
+    if: github.ref == 'refs/heads/main' && github.ref_protected
+    environment: review-gate-fixture
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Verify synthetic environment secret
+        env:
+          APPROVAL_SAMPLE: ${{ secrets.SDLC_APPROVAL_FIXTURE_SECRET }}
+        run: |
+          set -euo pipefail
+          test -n "$APPROVAL_SAMPLE"
+          printf '%s' "$APPROVAL_SAMPLE" | sha256sum | cut -d' ' -f1 | grep -Fqx '7219e45fd7069e534e77417e91a0d592fd4ec12c047a4780d7d8b40797a3ec79'
+          printf '%s\n' 'Environment test secret available after approval'
