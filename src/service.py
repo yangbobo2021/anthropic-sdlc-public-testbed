@@ -5,7 +5,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 def response(path: str) -> tuple[int, str]:
     if path == "/health":
-        return 200, "healthy"
+        return 503, "unhealthy synthetic change"
     if path == "/":
         return 200, "acceptance service"
     return 404, "not found"
