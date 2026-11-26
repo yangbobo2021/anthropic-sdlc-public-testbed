@@ -1,0 +1,9 @@
+{
+  "base_sha": "42811f7dcc48a12239bb474c075be754a9509d09",
+  "candidate_sha": "2e4a42bee76c4fa9d6201dd3df92ce6e178674b1",
+  "evaluation_run_id": 45758708203,
+  "passed": true,
+  "schema": "scn10-synthetic-holdout-verdict/v1",
+  "score_sha256": "d52cb74894b2cb668128c50c798ba1cc90dc71b0f883a11e8f664d17eeb911d0",
+  "target_repository": "yangbobo2021/anthropic-sdlc-public-testbed"
+}
