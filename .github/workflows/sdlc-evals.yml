@@ -1,0 +1,79 @@
+# SPDX-FileCopyrightText: 2026 boob.yang
+name: Replay frozen SDLC review cases
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, ready_for_review]
+  schedule:
+    - cron: '36 2 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  replay:
+    name: ${{ vars.SDLC_EVAL_REQUIRED == 'true' && 'SDLC required holdout' || 'SDLC advisory replay' }}
+    if: github.workflow_ref == format('{0}/.github/workflows/sdlc-evals.yml@refs/heads/{1}', github.repository, github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+    - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      with:
+        persist-credentials: false
+        path: candidate-reviewer
+        ref: ${{ github.event.pull_request.head.sha || github.sha }}
+    - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      with:
+        ref: ${{ github.event.repository.default_branch }}
+        path: protected-reviewer
+        persist-credentials: false
+    - name: Validate the holdout trust configuration
+      shell: bash
+      env:
+        HOLDOUT_REPO: ${{ vars.SDLC_EVAL_HOLDOUT_REPO }}
+        HOLDOUT_SHA: ${{ vars.SDLC_EVAL_HOLDOUT_SHA }}
+        REQUIRED: ${{ vars.SDLC_EVAL_REQUIRED }}
+      run: |
+        set -euo pipefail
+        if [[ "$REQUIRED" == true || -n "$HOLDOUT_REPO" || -n "$HOLDOUT_SHA" ]]; then
+          [[ "$HOLDOUT_REPO" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]
+          [[ "${HOLDOUT_REPO,,}" != "${GITHUB_REPOSITORY,,}" && "$HOLDOUT_SHA" =~ ^[0-9a-f]{40}$ ]]
+        fi
+    - name: Load team holdout from an independent private repository
+      if: vars.SDLC_EVAL_HOLDOUT_REPO != '' && vars.SDLC_EVAL_HOLDOUT_SHA != ''
+      uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      with:
+        repository: ${{ vars.SDLC_EVAL_HOLDOUT_REPO }}
+        ref: ${{ vars.SDLC_EVAL_HOLDOUT_SHA }}
+        token: ${{ secrets.SDLC_EVAL_HOLDOUT_READ_TOKEN }}
+        path: protected-holdout
+        persist-credentials: false
+    - name: Evaluate candidate with protected corpus
+      env:
+        HOLDOUT_SHA: ${{ vars.SDLC_EVAL_HOLDOUT_SHA }}
+        REQUIRED: ${{ vars.SDLC_EVAL_REQUIRED }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        mkdir -p artifacts
+        mkdir -p candidate-input baseline-input
+        git -C candidate-reviewer archive HEAD | tar -x -C candidate-input --exclude='evals/sdlc'
+        git -C protected-reviewer archive HEAD | tar -x -C baseline-input --exclude='evals/sdlc'
+        args=()
+        if [[ "$GITHUB_EVENT_NAME" == pull_request_target ]]; then args+=(--baseline baseline-input); fi
+        corpus=protected-reviewer/evals/sdlc/cases.jsonl
+        eligibility=public-fixture
+        if [[ -d protected-holdout ]]; then
+          test "$(git -C protected-holdout rev-parse HEAD)" = "$HOLDOUT_SHA"
+          corpus=protected-holdout/cases.jsonl
+          eligibility=protected-holdout
+        fi
+        if [[ "$REQUIRED" == true ]]; then test "$eligibility" = protected-holdout; fi
+        echo "Evaluating $eligibility" >> "$GITHUB_STEP_SUMMARY"
+        image=python:3.12-bookworm@sha256:5f0cc9bc924d72614831d2b1575de5d7c4114609a0d42ca60dfc2f0abca10dd6
+        python3 protected-reviewer/scripts/sdlc/replay_evals.py "$corpus" \
+          --candidate candidate-input --isolate-image "$image" "${args[@]}" -- make -s sdlc-review > artifacts/sdlc-evals.json
+    - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      if: always()
+      with:
+        name: sdlc-eval-result
+        path: artifacts/sdlc-evals.json
+        if-no-files-found: warn
