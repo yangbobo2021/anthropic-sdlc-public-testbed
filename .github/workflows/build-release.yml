@@ -1,0 +1,35 @@
+# SPDX-FileCopyrightText: 2026 boob.yang
+name: Build an immutable release candidate
+'on':
+  push:
+    branches:
+    - main
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main' && github.ref_protected
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+    - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      with:
+        persist-credentials: false
+    - name: Run reference check
+      run: |-
+        make package
+        python3 scripts/sdlc/build_receipt.py dist/release.tar.gz
+    - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      with:
+        name: immutable-release
+        path: dist/
+        if-no-files-found: error
+  attest:
+    needs: build
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      attestations: write
+    uses: ./.github/workflows/artifact-attestation.yml
