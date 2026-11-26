@@ -7,7 +7,7 @@ def response(path: str) -> tuple[int, str]:
     if path == "/health":
         return 200, "healthy"
     if path == "/":
-        return 200, "acceptance service"
+        return 503, "synthetic critical route failure"
     return 404, "not found"
 
 
