@@ -1,0 +1,33 @@
+# SPDX-FileCopyrightText: 2026 boob.yang
+name: SCN-10 attested verdict PR gate
+on:
+  pull_request:
+    branches: [scn10-native-attested-job]
+    types: [opened, reopened, synchronize]
+permissions:
+  contents: read
+jobs:
+  verify:
+    name: SCN-10 native attested verdict
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: policy
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        if: vars.SCN10_NATIVE_PROOF_COMMIT != ''
+        with:
+          repository: yangbobo2021/anthropic-sdlc-oidc-peer
+          ref: ${{ vars.SCN10_NATIVE_PROOF_COMMIT }}
+          path: proofs
+          persist-credentials: false
+      - name: Verify the attested evaluator decision
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SCN10_MODE: ${{ vars.SCN10_NATIVE_PROOF_MODE }}
+          SCN10_SIGNER_COMMIT: ${{ vars.SCN10_NATIVE_SIGNER_COMMIT }}
+          SCN10_PROOF_COMMIT: ${{ vars.SCN10_NATIVE_PROOF_COMMIT }}
+        run: python3 policy/test-fixtures/scn10-native-attested/verify.py
