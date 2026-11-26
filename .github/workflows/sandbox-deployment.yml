@@ -29,7 +29,8 @@ jobs:
           EXPECTED_DIGEST: ${{ inputs.digest }}
           SANDBOX_SUBJECT: repo:yangbobo2021@95600496/anthropic-sdlc-public-testbed@1471848289:environment:production-sandbox
         run: bash scripts/sdlc/sandbox-promotion.sh
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: sandbox-promotion-evidence
           path: evidence/

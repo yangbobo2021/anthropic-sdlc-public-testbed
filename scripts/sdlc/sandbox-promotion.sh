@@ -56,7 +56,15 @@ bao="$scratch/bao/usr/bin/bao"
 export BAO_ADDR=http://127.0.0.1:18200
 export BAO_TOKEN
 BAO_TOKEN="$(openssl rand -hex 32)"
-"$bao" server -dev -dev-listen-address=127.0.0.1:18200 -dev-root-token-id="$BAO_TOKEN" > "$scratch/bao.log" 2>&1 &
+cat > "$scratch/audit.hcl" <<CONFIG
+audit "file" "fixture" {
+  options = {
+    file_path = "$scratch/audit.jsonl"
+    log_raw = "false"
+  }
+}
+CONFIG
+"$bao" server -dev -config="$scratch/audit.hcl" -dev-listen-address=127.0.0.1:18200 -dev-root-token-id="$BAO_TOKEN" > "$scratch/bao.log" 2>&1 &
 bao_pid=$!
 curl -fsS --retry 10 --retry-connrefused "$BAO_ADDR/v1/sys/health" > /dev/null
 "$bao" version > evidence/target-version.txt
@@ -69,7 +77,6 @@ path "target/data/production" {
   capabilities = ["create", "update"]
 }
 POLICY
-"$bao" audit enable file file_path="$scratch/audit.jsonl" > /dev/null
 
 audience=https://sdlc-acceptance.invalid/production
 environment=production-sandbox
@@ -129,10 +136,19 @@ curl -fsS -H "X-Vault-Token: $deployment_token" -H 'Content-Type: application/js
 "$bao" kv get -format=json -mount=target production | jq -e .data.data > evidence/target-state.json
 jq -e --arg commit "$GITHUB_SHA" --arg digest "$EXPECTED_DIGEST" \
   '.commit == $commit and .digest == $digest' evidence/target-state.json > /dev/null
-HOST=127.0.0.1 PORT=18782 python3 "$scratch/runtime/src/service.py" > "$scratch/production.log" 2>&1 &
+printf '%s  %s\n' "$(jq -er .digest evidence/target-state.json)" "$artifact" | sha256sum -c
+mkdir "$scratch/promoted"
+tar -xf "$artifact" -C "$scratch/promoted" src/service.py
+HOST=127.0.0.1 PORT=18782 python3 "$scratch/promoted/src/service.py" > "$scratch/production.log" 2>&1 &
 production_pid=$!
 [[ "$(curl -fsS --retry 8 --retry-connrefused http://127.0.0.1:18782/health)" == healthy ]]
 jq '. + {environment:"production-sandbox",health:"healthy"}' evidence/target-state.json > evidence/production.json
+
+jq -s 'map(select(.type == "response" and
+  (.request.path == "auth/jwt/login" or (.request.path | startswith("target/data/"))))
+  | {time,path:.request.path,operation:.request.operation,policies:.auth.policies})' \
+  "$scratch/audit.jsonl" > evidence/audit.json
+jq -e 'any(.[]; .path == "target/data/production" and .policies == ["deploy"])' evidence/audit.json > /dev/null
 
 jq -nc --arg sha "$GITHUB_SHA" --arg digest "$EXPECTED_DIGEST" --arg repository "$GITHUB_REPOSITORY" \
   --arg run "$GITHUB_RUN_ID" --arg signer "$signer" --arg issuer https://token.actions.githubusercontent.com \
