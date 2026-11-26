@@ -1,0 +1,25 @@
+# SPDX-FileCopyrightText: 2026 boob.yang
+name: Scheduled full regression
+'on':
+  schedule:
+  - cron: 22 2 * * 1-5
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+    - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      with:
+        persist-credentials: false
+    - name: Run all project suites
+      run: python3 scripts/sdlc/full_regression.py .github/sdlc/full-regression.json artifacts/full-regression.json --sha "$GITHUB_SHA"
+    - name: Keep the coverage and escalation receipt
+      if: always()
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      with:
+        name: full-regression
+        path: artifacts/
+        if-no-files-found: error

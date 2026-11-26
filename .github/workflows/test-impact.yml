@@ -1,0 +1,67 @@
+# SPDX-FileCopyrightText: 2026 boob.yang
+name: Execute deterministic test impact plan
+on:
+  pull_request:
+  merge_group:
+    types: [checks_requested]
+  push:
+    branches: [main]
+  schedule:
+    - cron: '20 3 * * *'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  impact:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+    - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      with:
+        fetch-depth: 0
+        persist-credentials: false
+    - name: Read protected rules
+      uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      with:
+        ref: ${{ github.event.repository.default_branch }}
+        path: protected-sdlc
+        persist-credentials: false
+    - name: Fetch recent successful default-branch listener output
+      if: github.event_name == 'pull_request'
+      env:
+        GH_TOKEN: ${{ github.token }}
+        DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+      run: |
+        report=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/test-impact.yml/runs" \
+          --method GET -f branch="$DEFAULT_BRANCH" -f event=push -f status=completed -F per_page=25)
+        selected=$(jq -c --arg repo "$GITHUB_REPOSITORY" '.workflow_runs | map(select(.head_repository.full_name == $repo and (.conclusion == "success" or .conclusion == "failure"))) | .[0] // empty' <<< "$report")
+        if [ -n "$selected" ]; then
+          id=$(jq -r '.id' <<< "$selected")
+          sha=$(jq -r '.head_sha' <<< "$selected")
+          if gh run download "$id" --repo "$GITHUB_REPOSITORY" --name impact-history --dir "$RUNNER_TEMP/impact"; then
+            echo "SDLC_IMPACT_HISTORY_SHA=$sha" >> "$GITHUB_ENV"
+          fi
+        fi
+    - name: Select and execute test groups
+      env:
+        BASE: ${{ github.event.pull_request.base.sha }}
+      shell: bash
+      run: |
+        args=(--head "$GITHUB_SHA" --policy protected-sdlc/.github/sdlc/test-impact.json)
+        if [[ "$GITHUB_EVENT_NAME" == pull_request && -n "$BASE" ]]; then
+          args+=(--base "$BASE")
+          if [[ -n "${SDLC_IMPACT_HISTORY_SHA:-}" ]]; then
+            args+=(--history "$RUNNER_TEMP/impact/impact-history.json" --history-sha "$SDLC_IMPACT_HISTORY_SHA")
+          fi
+        else
+          args+=(--full)
+        fi
+        python3 protected-sdlc/scripts/sdlc/test_impact.py "${args[@]}"
+    - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      if: always()
+      with:
+        name: impact-history
+        path: |
+          artifacts/impact-history.json
+          artifacts/impact-selection.json
+        if-no-files-found: error

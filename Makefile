@@ -20,3 +20,9 @@ package:
 .PHONY: monitor-dependency-feed monitor-container-feed monitor-secret-feed monitor-cloud-feed
 monitor-dependency-feed monitor-container-feed monitor-secret-feed monitor-cloud-feed:
 	@python3 test-fixtures/monitor-feed.py $(word 2,$(subst -, ,$@))
+
+.PHONY: test-api test-client test-integration test-full-unit test-full-integration
+test-api test-client test-integration:
+	@python3 test-fixtures/check-groups.py impact $(patsubst test-%,%,$@)
+test-full-unit test-full-integration:
+	@python3 test-fixtures/check-groups.py full $(patsubst test-full-%,%,$@)
