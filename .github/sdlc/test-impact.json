@@ -1,0 +1,32 @@
+{
+  "groups": [
+    {
+      "name": "api",
+      "packages": [
+        "api/**"
+      ]
+    },
+    {
+      "name": "client",
+      "packages": [
+        "client/**"
+      ]
+    },
+    {
+      "name": "integration",
+      "packages": [
+        "api/**",
+        "client/**",
+        "tests/integration/**"
+      ]
+    }
+  ],
+  "always_full": [
+    ".github/**",
+    "Makefile",
+    "scripts/sdlc/**",
+    "*lock*"
+  ],
+  "history_max_age_seconds": 604800,
+  "group_timeout_seconds": 300
+}

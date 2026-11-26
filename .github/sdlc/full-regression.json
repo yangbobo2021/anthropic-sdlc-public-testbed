@@ -1,0 +1,7 @@
+{
+  "required_suites": [
+    "unit",
+    "integration"
+  ],
+  "notify_owner": "team-ci-owner"
+}
