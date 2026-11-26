@@ -6,10 +6,9 @@ umask 077
 mkdir -p evidence
 scratch=$(mktemp -d)
 bao_pid=''
-stage_pid=''
 production_pid=''
 cleanup() {
-  for pid in "$stage_pid" "$production_pid" "$bao_pid"; do
+  for pid in "$production_pid" "$bao_pid"; do
     if [[ -n "$pid" ]]; then kill "$pid" 2>/dev/null || true; fi
   done
   rm -rf -- "$scratch"
@@ -40,13 +39,10 @@ cp "$artifact" "$scratch/tampered/service.tar"
 printf 'different content\n' >> "$scratch/tampered/service.tar"
 must_fail altered-artifact verify "$scratch/tampered/service.tar" "$GITHUB_SHA" "$signer"
 
-mkdir "$scratch/runtime"
-tar -xf "$artifact" -C "$scratch/runtime" src/service.py
-HOST=127.0.0.1 PORT=18781 python3 "$scratch/runtime/src/service.py" > "$scratch/staging.log" 2>&1 &
-stage_pid=$!
-[[ "$(curl -fsS --retry 8 --retry-connrefused http://127.0.0.1:18781/health)" == healthy ]]
-jq -n --arg commit "$GITHUB_SHA" --arg digest "$EXPECTED_DIGEST" \
-  '{environment:"staging",health:"healthy",commit:$commit,digest:$digest}' > evidence/staging.json
+jq -e --arg commit "$GITHUB_SHA" --arg digest "$EXPECTED_DIGEST" --arg run "$GITHUB_RUN_ID" \
+  '.environment == "staging" and .health == "healthy" and .commit == $commit and .digest == $digest and .run == $run' \
+  staging/staging.json > /dev/null
+cp staging/staging.json evidence/staging.json
 
 curl -fsSL https://github.com/openbao/openbao/releases/download/v2.4.1/bao_2.4.1_linux_amd64.deb \
   -o "$scratch/bao.deb"

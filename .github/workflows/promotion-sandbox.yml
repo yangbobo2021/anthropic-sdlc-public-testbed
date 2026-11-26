@@ -39,8 +39,42 @@ jobs:
           name: signed-service
           path: package/service.tar
           if-no-files-found: error
-  deploy:
+  stage:
     needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      attestations: read
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: signed-service
+          path: package
+      - name: Test signed artifact in isolated staging
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_DIGEST: ${{ needs.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          printf '%s  %s\n' "$EXPECTED_DIGEST" package/service.tar | sha256sum -c
+          gh attestation verify package/service.tar -R "$GITHUB_REPOSITORY" \
+            --source-ref refs/heads/main --source-digest "$GITHUB_SHA" \
+            --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/promotion-sandbox.yml" --signer-digest "$GITHUB_SHA"
+          mkdir runtime
+          tar -xf package/service.tar -C runtime src/service.py
+          HOST=127.0.0.1 PORT=18781 python3 runtime/src/service.py &
+          trap 'kill "$!" 2>/dev/null || true' EXIT
+          [[ "$(curl -fsS --retry 8 --retry-connrefused http://127.0.0.1:18781/health)" == healthy ]]
+          jq -n --arg commit "$GITHUB_SHA" --arg digest "$EXPECTED_DIGEST" --arg run "$GITHUB_RUN_ID" \
+            '{environment:"staging",health:"healthy",commit:$commit,digest:$digest,run:$run}' > staging.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: trusted-staging-receipt
+          path: staging.json
+          if-no-files-found: error
+  deploy:
+    needs: [build, stage]
     permissions:
       contents: read
       attestations: read
