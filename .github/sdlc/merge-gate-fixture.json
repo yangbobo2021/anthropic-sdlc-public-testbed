@@ -1,0 +1,30 @@
+{
+  "events": [
+    "pull_request",
+    "merge_group"
+  ],
+  "checks": [
+    {
+      "name": "build",
+      "producer": "trusted-build-app",
+      "may_be_not_applicable": false
+    },
+    {
+      "name": "review-evidence",
+      "producer": "trusted-review-app",
+      "may_be_not_applicable": false
+    }
+  ],
+  "blocking_severities": [
+    "critical",
+    "important"
+  ],
+  "exception_approvers": [
+    "security-owner"
+  ],
+  "human_approvers": [
+    "maintainer",
+    "security-owner"
+  ],
+  "minimum_humans": 1
+}
