@@ -1,0 +1,38 @@
+# SPDX-FileCopyrightText: 2026 boob.yang
+name: Validate deployment configuration
+'on':
+  workflow_call:
+    inputs:
+      manifest:
+        type: string
+        required: true
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+    - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      with:
+        persist-credentials: false
+    - name: Read policy from protected branch
+      uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      with:
+        ref: ${{ github.event.repository.default_branch }}
+        path: trusted-policy
+        persist-credentials: false
+    - name: Install pinned Conftest
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        cd "$RUNNER_TEMP"
+        filename=conftest_0.71.1_Linux_x86_64.tar.gz
+        gh release download v0.71.1 --repo open-policy-agent/conftest --pattern "$filename"
+        echo "c3f6b2a753bd56e377a1e51a95ae3e057f926f2e9139f7d5b5dfbbaf810f7985  $filename" | sha256sum -c -
+        tar -xzf "$filename" conftest
+        echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+    - name: Run reference check
+      run: trusted-policy/scripts/sdlc/infra-checks.sh "$MANIFEST" trusted-policy/policy
+    env:
+      MANIFEST: "${{ inputs.manifest }}"
