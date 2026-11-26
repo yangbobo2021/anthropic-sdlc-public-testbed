@@ -41,3 +41,6 @@ canary-verify-promotion canary-deploy canary-observe canary-advance canary-rollb
 .PHONY: sdlc-review
 sdlc-review:
 	@python3 test-fixtures/evaluation-reviewer.py
+
+.PHONY: ci
+ci: verify
