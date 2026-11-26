@@ -1,0 +1,2 @@
+synthetic security receipt fixture: refresh
+synthetic subsequent revision with no scanner receipt
