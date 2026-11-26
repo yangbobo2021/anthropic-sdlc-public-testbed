@@ -1,0 +1,37 @@
+# SPDX-FileCopyrightText: 2026 boob.yang
+name: Verify security evidence on GitHub PR events
+on:
+  pull_request_target:
+    types: [opened, synchronize]
+    branches: [main]
+    paths: ['test-fixtures/security-adapter/events/**']
+permissions:
+  contents: read
+jobs:
+  verify-security-event:
+    if: >-
+      github.repository == 'yangbobo2021/anthropic-sdlc-public-testbed' &&
+      github.workflow_ref == format('{0}/.github/workflows/security-event-fixture.yml@refs/heads/main', github.repository) &&
+      github.actor == 'yangbobo2021' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      contains(fromJSON('["codex/sdlc-0050-native-refresh","codex/sdlc-0050-native-blocking"]'), github.head_ref)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      checks: write
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Assert inputs and the adapter result on the actual PR event
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 test-fixtures/security-adapter/event_fixture.py
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: security-event-result
+          path: artifacts/security-event-result.json
+          if-no-files-found: error
