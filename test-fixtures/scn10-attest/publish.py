@@ -78,7 +78,7 @@ def main():
     print("SCN10_DECISION=" + json.dumps(decision, sort_keys=True), flush=True)
     run_url = f"https://github.com/{REPOSITORY}/actions/runs/{os.environ['GITHUB_RUN_ID']}"
     created = api("check-runs", "POST", {
-        "name": "SCN-10 attested holdout verdict", "head_sha": merge_sha,
+        "name": "SCN-10 attested holdout verdict", "head_sha": CANDIDATE_SHA,
         "status": "completed", "conclusion": conclusion, "details_url": run_url,
         "output": {"title": reason, "summary": json.dumps(decision, indent=2)},
     })
