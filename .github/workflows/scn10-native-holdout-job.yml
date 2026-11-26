@@ -1,0 +1,28 @@
+# SPDX-FileCopyrightText: 2026 boob.yang
+name: SCN-10 synthetic native required workflow
+on:
+  pull_request:
+    branches: [scn10-native-job-sandbox]
+    types: [opened, reopened, synchronize]
+permissions:
+  contents: read
+jobs:
+  verify:
+    name: SCN-10 signed holdout verdict
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: sandbox
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: refs/heads/main
+          path: published
+          persist-credentials: false
+      - name: Verify and apply the signed evaluator result
+        env:
+          PUBLISHED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: python3 sandbox/test-fixtures/scn10-native-job/verify.py
